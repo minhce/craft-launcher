@@ -688,9 +688,13 @@ impl LauncherUi {
     pub(crate) fn actions_in(&mut self, ui: &mut Ui, entry: &AppEntry, status: &AppStatus, width: f32, links_in_menu: bool) {
         let t = Tokens::get(ui.ctx());
         let id = entry.app.id.to_string();
-        // One square button (the menu) beside the main one.
+        // One square button (the menu) beside the main one, and a Web app button between them when
+        // the app has a hosted web version.
         let gap = ui.spacing().item_spacing.x;
-        let main_w = (width - theme::CONTROL_H - gap).max(120.0);
+        let web_label = format!("{} ↗", tl!("Web app"));
+        let web = entry.app.web_app();
+        let web_w = web.map_or(0.0, |_| widgets::button_width(ui, &web_label, 0.0) + gap);
+        let main_w = (width - theme::CONTROL_H - gap - web_w).max(120.0);
         if let Some(phase) = entry.job {
             // Two square buttons (pause, cancel) beside the bar while downloading.
             let bar_w = (width - 2.0 * (theme::CONTROL_H + gap) - 4.0).max(100.0);
@@ -794,9 +798,10 @@ impl LauncherUi {
                 }
             }
             Primary::Download(url) => {
+                // Beside a Web app button there's only room for the short label.
                 let label = match self.platform {
-                    Some(p) => fmt(tl!("Download for {os}"), &[("os", p.os.label())]),
-                    None => tl!("Download").into(),
+                    Some(p) if web.is_none() => fmt(tl!("Download for {os}"), &[("os", p.os.label())]),
+                    _ => tl!("Download").into(),
                 };
                 if widgets::button(ui, &label, Kind::Primary, main_w).clicked() {
                     ui.ctx().open_url(egui::OpenUrl::new_tab(url));
@@ -805,6 +810,11 @@ impl LauncherUi {
             Primary::Unavailable(label) => {
                 ui.add_enabled_ui(false, |ui| widgets::button(ui, label, Kind::Secondary, main_w));
             }
+        }
+        if let Some(url) = web
+            && widgets::button(ui, &web_label, Kind::Secondary, 0.0).on_hover_text(url).clicked()
+        {
+            ui.ctx().open_url(egui::OpenUrl::new_tab(url));
         }
         self.menu(ui, entry, status, links_in_menu);
     }
