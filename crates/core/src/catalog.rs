@@ -68,6 +68,11 @@ impl CraftApp {
         format!("https://getartcraft.com/apps/{}", self.id)
     }
 
+    /// Where this app's web version is hosted, if this build was told (see [`web_app_url`]).
+    pub fn web_app(&self) -> Option<&'static str> {
+        web_app_url(self.id)
+    }
+
     /// Asset stems this app's releases may use, current first.
     pub fn stems(&self) -> impl Iterator<Item = &'static str> + '_ {
         std::iter::once(self.id).chain(self.former_ids.iter().copied())
@@ -199,6 +204,24 @@ pub const SUITE: [CraftApp; 12] = [
 ];
 
 /// ArtCraft's website.
+/// Web versions of the apps, set when building: `CRAFT_WEB_APPS="wordcraft=https://…;gridcraft=https://…"`.
+/// Unset, or an app missing from it, means no web version to open.
+pub const WEB_APPS: Option<&str> = option_env!("CRAFT_WEB_APPS");
+
+/// The web version of app `id` from [`WEB_APPS`]; only `https://` addresses count.
+pub fn web_app_url(id: &str) -> Option<&'static str> {
+    find_web_app(WEB_APPS?, id)
+}
+
+/// App `id`'s address in a `CRAFT_WEB_APPS`-style list.
+fn find_web_app<'a>(list: &'a str, id: &str) -> Option<&'a str> {
+    list.split(';')
+        .filter_map(|pair| pair.split_once('='))
+        .find(|(key, _)| key.trim() == id)
+        .map(|(_, url)| url.trim())
+        .filter(|url| url.starts_with("https://"))
+}
+
 pub const WEBSITE_URL: &str = "https://getartcraft.com";
 /// The GitHub account every Craft App's repository lives under: the only one the launcher
 /// installs from, whatever the release feed says.
@@ -259,5 +282,15 @@ mod tests {
         assert_eq!(pdf.names().collect::<Vec<_>>(), ["PdfCraft", "PrintCraft"]);
         assert_eq!(pdf.website(), "https://getartcraft.com/apps/pdfcraft");
         assert_eq!(CraftApp::by_id("wordcraft").unwrap().website(), "https://getartcraft.com/apps/wordcraft");
+    }
+
+    #[test]
+    fn web_apps_come_from_the_build_list() {
+        let list = "wordcraft=https://example.com/word ; gridcraft = https://example.com/grid;deckcraft=http://insecure;bad";
+        assert_eq!(find_web_app(list, "wordcraft"), Some("https://example.com/word"));
+        assert_eq!(find_web_app(list, "gridcraft"), Some("https://example.com/grid"));
+        assert_eq!(find_web_app(list, "deckcraft"), None, "only https addresses");
+        assert_eq!(find_web_app(list, "photocraft"), None);
+        assert_eq!(find_web_app("", "wordcraft"), None);
     }
 }

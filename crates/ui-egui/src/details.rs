@@ -431,7 +431,10 @@ fn drawer_area(ctx: &egui::Context) -> Rect {
 
 /// The app's links as a row of buttons sharing `row_w`; the ↗ says each opens the browser, like the links on the cards.
 fn link_buttons(ui: &mut Ui, app: &CraftApp, row_w: f32) {
-    let links = [(tl!("Website"), app.website()), (tl!("GitHub"), app.repo_url()), (tl!("Releases"), app.releases_url())];
+    let mut links = vec![(tl!("Website"), app.website()), (tl!("GitHub"), app.repo_url()), (tl!("Releases"), app.releases_url())];
+    if let Some(url) = app.web_app() {
+        links.insert(0, (tl!("Open web app"), url.to_string()));
+    }
     let gap = ui.spacing().item_spacing.x;
     let link_w = ((row_w - gap * (links.len() as f32 - 1.0)) / links.len() as f32).floor();
     ui.horizontal(|ui| {

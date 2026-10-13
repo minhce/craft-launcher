@@ -429,6 +429,9 @@ impl LauncherUi {
                 ui.spacing_mut().item_spacing.x = 16.0;
                 widgets::hud_link(ui, tl!("GitHub"), &app.repo_url());
                 widgets::hud_link(ui, tl!("Website"), &app.website());
+                if let Some(url) = app.web_app() {
+                    widgets::hud_link(ui, tl!("Web app"), url);
+                }
             });
         }
 
